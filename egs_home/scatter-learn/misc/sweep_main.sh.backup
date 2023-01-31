@@ -1,0 +1,6 @@
+#!/bin/sh
+rand_num=$1
+ncase=ncase_main_placeholder
+sigma=sigma_main_placeholder
+outs=$(./sweep_noclean.sh $rand_num $ncase $sigma)
+./sweep_clean.sh "$outs"

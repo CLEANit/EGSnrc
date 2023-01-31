@@ -1,0 +1,338 @@
+################################################################################
+#
+# Scattering model for EGSnrc deep learning simulations
+#
+# Isaac Tamblyn
+# Evan Thomas
+# Frédéric Tessier
+#
+# National Research Council Canada
+#
+################################################################################
+
+
+# Usage:
+
+# Put this file in $EGS_HOME/scatter-learn (along with all the accompanying .dat
+# files), then issue the command:
+#
+#   scatter-learn -i scatter-learn.egsinp
+#
+# Add the "-b" flag to redirect standard output to scatter-learn.egslog, which
+# contains the sought results.
+
+
+# Viewer:
+
+# To view the geometry with tracks and nice colours:
+#
+#   egs_view scatter-learn.egsinp scatter-learn.ptracks scatter-learn.egsview &
+#
+# (remove scatter-learn.ptracks if you don't generate tracks)
+
+
+# Comments:
+
+# Pick lower Z elements, for much faster simulations. High-z elements are
+# typically used in shielding, imaging is usually geared towards biology (low-Z,
+# C, H, O, Ti for medical implants, trace metals) or technical inspection
+# (typically Al and metals).
+
+# It might be instructive at first to look at high density contrast, for better
+# signal discrimination (and thus, I am guessing, more efficient learning). Below
+# I am considering air (~0.001 g/cm^3), water (~1) and aluminum (~2.7), for
+# example. Higher-Z will also give you strong contrast, but again for the sake of
+# simulation efficiency you'll prefer low Z for starters.
+
+# For the voxel data, I use the include file functionality. I generate the "set
+# medium = reg index" lines in a separate text file with the included python
+# script. There are also other input format to input data from a voxelized
+# medical images, but this is the simplest until we deal with real medical data.
+# Same "includefile" idea for the detector grid and media.
+
+# For the detector, I used Ge (germanium), which is the typical crystalline
+# material used for high-resolution detectors. Lead stops photons more
+# efficiently, but not detector is made of lead. Again, you can play around with
+# it at will, just trying to set up a scenario that you can claim as realistic.
+
+# For the energy, using higher energies will be slower, but provide more signal,
+# so there is a trade off (which also depends on Z etc.). To give some
+# perspective, medical imaging is ~ 0.1 MeV, and photon radiation therapy is ~ 10
+# MeV, so anything in that range has a realistic end point. Below I pick 0.1 MeV,
+# in the imaging domain.
+
+# Note that there distinct physics at play: 1-100 keV implies more photoelectric
+# interactions, between ~ 100 keV -- 1 MeV is the Compton regime, and above 1.022
+# MeV (twice the electron rest mass) pair creation becomes possible and
+# eventually dominates. this might be important for learning applications,
+# because for example below 1.022 MeV pair creation is completely absent, and
+# perhaps this becomes a different class of training set (or maybe not, even
+# better!). At any rate, the graph of the relative cross section for the elements
+# under study can help identify distinct regimes, if needed.
+
+
+# Results:
+
+# The code spits out the energy deposited and dose (energy per unit mass) in each
+# germanium "pixel". Energy is the relevant measurand for a photon detector
+# (dose is relevant for biological effect). The output is just a list of values
+# for each region number (media germanium_even and germanium_odd), scanning the
+# detector in x and y. Then you are on your own to process that towards an
+# image format :-), e.g., a quick pipe to get pixel intensities (energies):
+#
+#   cat scatter-learn.egslog | grep germanium_ | awk '{print $1, $5, $7/100*$5}'
+
+# In terms of results, I can run this input file for 1e6 histories (independent
+# incident particles), and get germanium energy values to within 0.30 relative
+# uncertainty, in about 3.1 seconds on a single CPU (when tracks generation is
+# disabled). The uncertainty decreases as 1/sqrt(N), so to reach 0.01 relative
+# uncertainty (a reasonable goal), one needs about 100 times as many histories, or
+# 1e9. This could be achieved in an hour on a single CPU, and seconds on our
+# cluster (or yours, or GPSC, what have you). Keep in mind that without there are
+# many tricks, e.g., raytrace photons and estimate energy deposition with track
+# length, which can speed this up by orders of magnitude. Once you get going, we
+# can tak about that.
+
+
+# Hints:
+
+# length units are cm
+# energy units are MeV
+# run control block is at the end of the file; order of blocks does not matter
+
+
+##############################################################################
+### GEOMETRY
+##############################################################################
+:start geometry definition:
+
+    ### encapsulating simulation box
+    # hint: consider using air instead of vacuum
+    :start geometry:
+        name     = air_box
+        library  = egs_ndgeometry
+        type     = EGS_XYZGeometry
+        x-planes = -40 40
+        y-planes = -40 40
+        z-planes = -10 60       # -10 to see a bit of the incident beam
+        :start media input:
+            media = vacuum
+        :stop media input:
+    :stop geometry:
+
+    ### scattering target
+    # hint: to add more voxels, just define more x-, y-, or z-planes
+    # hint: phantom starts at z=0, towards +z (this is our usual convention)
+    :start geometry:
+        name     = target
+        library  = egs_ndgeometry
+        type     = EGS_XYZGeometry
+        x-planes = -4 -3 -2 -1 0 1 2 3 4
+        y-planes = -4 -3 -2 -1 0 1 2 3 4
+        z-planes =  0 1 2 3 4 5 6 7 8
+        :start media input:
+            includefile = include-scatter-media.dat
+        :stop media input:
+    :stop geometry:
+
+    ### detector plane
+    # hint: we can change this in the application code to score the photons
+    # irrespective of the material (perfect 2d detector plane)
+    :start geometry:
+        name     = detector
+        library  = egs_ndgeometry
+        type     = EGS_XYZGeometry
+        includefile = include-detector-grid.dat
+        z-planes = 50 55      # 50 cm away from incident plane
+        :start media input:
+            includefile = include-detector-media.dat
+            # hint: there are two media to get a check board in the viewer (each
+            # medium has its own colour), but they are physically the same
+            # material.
+        :stop media input:
+    :stop geometry:
+
+    ### simulation "lab": include all components in big air box
+    :start geometry:
+        name    = lab
+        library = egs_genvelope     # hint: notice the "g" in "genvelope"
+        base geometry = air_box
+        inscribed geometries = target detector
+    :stop geometry:
+
+    ### default geometry in the viewer
+    simulation geometry = lab
+
+:stop geometry definition:
+
+
+##############################################################################
+### MEDIA
+##############################################################################
+:start media definition:
+
+    ### cutoff energies
+    ae  = 0.521             # lowest  energy for electrons (kinetic+0.511 MeV)
+    ap  = 0.010             # lowest  energy for photons   (kinetic)
+    ue  = 50.511            # maximum energy for electrons (kinetic+0.511)
+    up  = 50                # maximum energy for photons   (kinetic)
+
+    # hint: no need to define vacuum, it is always defined
+
+    ### air
+    :start air:
+        density correction file = air_dry_nearsealevel
+    :stop air:
+
+    ### water
+    :start water:
+        density correction file = water_liquid
+    :stop water:
+
+    ### aluminum
+    :start aluminum:
+        density correction file = aluminum
+    :stop aluminum:
+
+    ### germanium_even
+    :start germanium_even:
+        density correction file = germanium
+    :stop germanium_even:
+
+    ### germanium_odd
+    :start germanium_odd:
+        density correction file = germanium
+    :stop germanium_odd:
+
+:stop media definition:
+
+
+##############################################################################
+### SOURCE
+##############################################################################
+:start source definition:
+
+
+    ### rectangular parallel beam
+    :start source:
+        name      = rectangular_source
+        library   = egs_parallel_beam
+        charge    = -1       # electrons (-1), photons (0), or positrons (1)
+        direction = 0 0 1   # x, y, z beam direction vector
+
+        # cross sectional shape of the incident beam
+        :start shape:
+            library = egs_rectangle      # rectangular shape
+            rectangle = -4 -4 4 4        # in z=0 plane by default
+            :start transformation:
+                translation = 0 0 -10    # translate to z = -10, for the view!
+            :stop transformation:
+        :stop shape:
+
+        # monoenergetic spectrum
+        # hint: typical energy imaging ~ 0.1 MeV; radiation therapy ~ 10 MeV
+        :start spectrum:
+            type = monoenergetic
+            energy = 0.100
+        :stop spectrum:
+
+    :stop source:
+
+    simulation source = rectangular_source
+
+:stop source definition:
+
+
+##############################################################################
+### TRANSPORT PARAMETERS
+##############################################################################
+:start MC transport parameter:
+
+    ### energy cutoffs
+
+    # hint: by setting ECUT very high (above the source energy), we are
+    # effectively turning off electron transport: electrons stop and deposit
+    # their energy locally as soon as they are created (it is still important to
+    # create them, to get the proper energy loss on the photons). This is a crude
+    # approximation, especially as the energy increase, but speeds up the
+    # simulation (~ factor 5 at 0.1 MeV) since electron transport is the costly
+    # part of radiation Monte Carlo (lots of interactions in matter for charged
+    # particles). So eventually you want to dial the ECUT value down to 0.521 MeV
+    # (0.511 keV rest mass + 10 keV kinetic energy).
+
+    Global ECUT                   = 0.521
+    #Global ECUT                     = 10        # Global electron transport cutoff
+    Global PCUT                     = 0.010     # Global photon transport cutoff
+
+    ### others: most of these are defaults; just listing them for reference
+
+    Spin effects                    = On        # On (default), Off
+    Brems angular sampling          = KM        # Simple, KM (default)
+    Brems cross sections            = NRC       # BH (default), NIST
+    Pair angular sampling           = KM        # Off, Simple (default), KM
+    Bound Compton scattering        = On        # On (default), Off, norej
+    Photoelectron angular sampling  = On        # On (default), Off
+    Atomic relaxations              = On        # On (default), Off
+    Photon cross sections           = xcom      # si (default), epdl, xcom or user-supplied
+    Rayleigh scattering             = On
+    Boundary crossing algorithm     = Exact
+    Skin depth for BCA              = 3
+    ESTEPE                          = 0.25
+
+:stop MC transport parameter:
+
+
+##############################################################################
+### SCORING
+##############################################################################
+:start scoring options:
+
+    # hint: this is application specific. Here I am including what is required
+    # for the scatter-learn application, but the output we are using is from the
+    # dose scoring object below. The scatter-learn application has some useful
+    # variance reduction techniques to speed up the simulation, eventually.
+
+    :start calculation geometry:
+        geometry name   = lab       # the geometry used for the simulation
+        cavity regions  = 1         # don't worry about this for now
+        cavity mass     = 1         # don't worry about this for now
+    :stop calculation geometry:
+
+:stop scoring options:
+
+
+##############################################################################
+### AUSGAB OBJECTS
+##############################################################################
+:start ausgab object definition:
+
+    ### particle tracks
+    :start ausgab object:
+        library = egs_track_scoring
+        name    = tracks
+    :stop ausgab object:
+
+    ### dose value for each region in the geometry
+    :start ausgab object:
+        library      = egs_dose_scoring
+        name         = dose
+        region dose  = yes
+    :stop ausgab object:
+
+:stop ausgab object definition:
+
+
+##############################################################################
+### RUN CONTROL
+##############################################################################
+:start run control:
+    ncase = 1e7
+    geometry error limit = 1000
+:stop run control:
+
+:start rng definition:
+    initial seeds = 112 234
+    # hint:  pick seeds in [0, 32000]; same seeds yield the exact same sequence
+    # of particles and events (on the same hardware); changing either seed
+    # yields a statistically independent simulation
+:stop rng definition:

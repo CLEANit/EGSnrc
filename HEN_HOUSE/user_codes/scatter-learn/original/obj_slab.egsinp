@@ -1,0 +1,167 @@
+################################
+#
+# Simple slab simulation
+#
+################################
+#
+#
+################################
+### RUN CONTROL
+################################
+#
+:start run control:
+	ncase = 1e4 # The number of histories to simulate
+	statistical accuracy sought = 1
+	max cpu hours allowed = 15
+	#calculation = combine
+:stop run control:
+################################
+### GEOMETRY
+################################
+:start geometry definition:
+        :start geometry:
+                name = block
+                library = egs_spheres
+                radii = 1
+                :start media input:
+                        media = lead
+                        set medium 0 0
+                :stop media input:
+        :stop geometry:
+
+        :start geometry:
+                name = target
+                library = egs_ndgeometry
+                type = EGS_XYZGeometry
+                x-planes = 3, 3.1
+                y-planes = -5, 5
+                z-planes = -5, 5
+                :start media input:
+                        media = lead tantalum uranium
+                        set medium = 0 0
+                        #set medium = 1 1
+                        #set medium = 2 2
+                :stop media input:
+        :stop geometry:
+
+        :start geometry:
+                name = cd_planes
+                library = egs_planes
+                type = EGS_Xplanes
+                positions = -5 1.1 5 #0.935 5
+        :stop geometry:
+
+        :start geometry:
+                name = combination
+                library = egs_cdgeometry
+                base geometry = cd_planes
+                set geometry = 0 block
+                set geometry = 1 target
+        :stop geometry:
+
+	:start geometry:
+		name=outer_air_box
+		library = egs_box
+		box size = 15 15 15
+		:start media input:
+			media = vacuum 
+			set medium = 0 0
+		:stop media input:
+	:stop geometry:
+
+	:start geometry:
+		name=stuff_in_box
+		library = egs_genvelope
+		base geometry = outer_air_box
+		inscribed geometries = combination
+	:stop geometry:
+
+        simulation geometry = stuff_in_box
+:stop geometry definition:
+
+################################
+### MEDIA
+################################
+:start media definition: # Only 1 media definition block allowed
+	# Defining media in the input file like this is called "pegsless" mode
+	### Cutoff energies, in MeV
+	ae = 0.521 # lowest energy for electrons (kinetic+0.511)
+	ap = 0.01 # lowest energy for photons (kinetic)
+	ue = 50.511 # maximum energy for electrons (kinetic+0.511)
+	up = 50 # maximum energy for photons (kinetic)
+	### Tantalum
+	:start tantalum: # this name can be anything
+		density correction file = tantalum # name the file (no ext.)
+	:stop tantalum:
+	### Lead
+	:start lead:
+		density correction file = lead
+	:stop lead:
+	### Water
+	:start water:
+		density correction file = water_liquid
+	:stop water:
+
+	:start vacuum:
+		density correction file = vacuum
+	:stop vacuum:
+
+	:start uranium:
+		density correction file = uranium
+	:stop uranium:
+:stop media definition:
+################################
+### SOURCE
+################################
+:start source definition: # Only 1 source definition block allowed
+	### Pencil beam
+	:start source:
+		library = egs_parallel_beam
+		name = pencil_beam # This name can be anything you like
+		:start shape:
+			type = point
+			position = -15 0 0 # in cm
+		:stop shape:
+		direction = 1 0 0
+		charge = -1
+		:start spectrum:
+			type = monoenergetic
+			energy = 20 # in MeV
+		:stop spectrum:
+	:stop source:
+	### Use the source by this name for the simulation
+	simulation source = pencil_beam
+:stop source definition:
+################################
+### VIEWER CONTROL
+################################
+:start view control:
+# Here we are just assigning some colors for nice
+# viewing in the egs_view application
+	set color = lead 120 120 200 200
+	set color = tantalum 120 255 120 255
+	set color = water 0 220 255 200
+:stop view control:
+################################
+### AUSGAB OBJECTS
+################################
+:start ausgab object definition: # Only 1 ausgab definition block allowed
+### Particle tracks
+	#:start ausgab object:
+	#	library = egs_dose_scoring
+	#	volume = 785.398163397
+	#	region dose = yes
+	#	name = my_dose_scoring
+	#:stop ausgab object:
+	#
+	:start ausgab object:
+		name = tracks
+		library = egs_track_scoring
+		#score photons = yes
+		#score electrons = yes
+		#score positirons = yes
+	:stop ausgab object:
+
+:stop ausgab object definition:
+
+

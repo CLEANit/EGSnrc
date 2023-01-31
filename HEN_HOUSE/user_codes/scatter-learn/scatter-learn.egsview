@@ -1,0 +1,115 @@
+:start general:
+    font size = 10
+    controls position = 25 25
+    controls size = 675 592
+    view position = 876 0
+    view size = 1386 976
+:stop general:
+:start camera view:
+    rotation point = 5.7 -1.271 38.22
+    camera = -665.561 390.032 -668.031
+    camera v1 = -0.737976 -0.0515398 0.672856
+    camera v2 = 0.216086 0.926532 0.30797
+    zoom = -90
+:stop camera view:
+:start home view:
+    home position = 0 0 49
+    home = 0 0 1099
+    home v1 = 1 0 0
+    home v2 = 0 1 0
+    zoom = -112
+:stop home view:
+:start tracks:
+    show tracks = 1
+    photons = 1
+    electrons = 0
+    positrons = 1
+:stop tracks:
+:start overlay:
+    show axis = 1
+    show axis labels = 1
+    show regions = 1
+:stop overlay:
+:start dose:
+    alpha = 50
+:stop dose:
+:start material colors:
+    :start material:
+        material = air
+        rgb = 170 255 127
+        alpha = 139
+    :stop material:
+    :start material:
+        material = water
+        rgb = 0 220 255
+        alpha = 217
+    :stop material:
+    :start material:
+        material = aluminum
+        rgb = 170 170 255
+        alpha = 255
+    :stop material:
+    :start material:
+        material = germanium_even
+        rgb = 125 125 125
+        alpha = 255
+    :stop material:
+    :start material:
+        material = germanium_odd
+        rgb = 150 150 150
+        alpha = 255
+    :stop material:
+    :start material:
+        material = vacuum
+        rgb = 0 0 0
+        alpha = 0
+    :stop material:
+:stop material colors:
+:start clipping planes:
+    :start plane:
+        ax = -1
+        ay = 0
+        az = 0
+        d = 0
+        applied = 0
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+    :start plane:
+        applied = 2
+    :stop plane:
+:stop clipping planes:
+:start hidden regions:
+    region list =
+:stop hidden regions:
+:start colors:
+    background = 0 0 0
+    text = 255 255 255
+    axis = 255 255 255
+    photons = 255 255 0
+    electrons = 255 0 0
+    positrons = 0 0 255
+    energy scaling = 1
+:stop colors:

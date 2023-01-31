@@ -1,0 +1,1 @@
+run_-_ncase_10000_-_sigma_0.1_-_Nsample_1000
